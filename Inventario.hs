@@ -6,3 +6,10 @@ data Item = Item
     } deriving (Show, Read)
   
 type Inventario = Data.Map.Map String Item
+
+data AcaoLog
+    = Add
+    | Remove
+    | Update
+    | QueryFail
+    deriving (Show, Read)
