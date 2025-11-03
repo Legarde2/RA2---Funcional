@@ -5,4 +5,4 @@ data Item = Item
     , categoria :: String
     } deriving (Show, Read)
   
-
+type Inventario = Data.Map.Map String Item
