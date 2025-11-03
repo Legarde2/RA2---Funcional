@@ -13,3 +13,8 @@ data AcaoLog
     | Update
     | QueryFail
     deriving (Show, Read)
+
+data StatusLog
+    = Sucesso
+    | Falha String
+    deriving (Show, Read)
