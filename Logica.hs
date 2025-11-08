@@ -18,7 +18,6 @@ addItem time newID newNome newQtde newCat inv =
     if Map.member newID inv
     then Left "Erro: Item com este ID já existe."
     else
-        
         let newItem = Item
                 { itemID = newID
                 , nome = newNome
@@ -35,10 +34,10 @@ addItem time newID newNome newQtde newCat inv =
         in Right (newInv, logEntry)
 
 -- Função pura para remover um item
-removerItem :: UTCTime         
-            -> String         
-            -> Int             
-            -> Inventario      
+removerItem :: UTCTime
+            -> String
+            -> Int
+            -> Inventario
             -> Either String ResultadoOperacao
 removerItem time itemID qtdeRemover inv =
     case Map.lookup itemID inv of
@@ -57,6 +56,31 @@ removerItem time itemID qtdeRemover inv =
                         { timestamp = time
                         , acao = Remove
                         , detalhes = "Removido " ++ show qtdeRemover ++ " unidades do item ID: " ++ itemID ++ ". Nova qtde: " ++ show novaQtde
+                        , status = Sucesso
+                        }
+                in Right (newInv, logEntry)
+
+
+-- Função pura para atualizar a quantidade de um item
+atualizarQuantidade :: UTCTime
+                    -> String
+                    -> Int
+                    -> Inventario
+                    -> Either String ResultadoOperacao
+atualizarQuantidade time itemID novaQtde inv =
+    if novaQtde < 0
+    then Left "Erro: Quantidade não pode ser negativa."
+    else
+        case Map.lookup itemID inv of
+            Nothing -> Left "Erro: Item não encontrado para atualizar."
+            Just item ->
+                let qtdeAntiga = quantidade item
+                    itemAtualizado = item { quantidade = novaQtde }
+                    newInv = Map.insert itemID itemAtualizado inv
+                    logEntry = LogEntry
+                        { timestamp = time
+                        , acao = Update
+                        , detalhes = "Quantidade do item ID: " ++ itemID ++ " atualizada de " ++ show qtdeAntiga ++ " para " ++ show novaQtde
                         , status = Sucesso
                         }
                 in Right (newInv, logEntry)
