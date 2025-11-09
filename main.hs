@@ -1,5 +1,3 @@
-module Main where
-
 -- Módulos do projeto
 import Inventario
 import Logica
@@ -17,6 +15,7 @@ invFile :: FilePath
 invFile = "Inventario.dat"
 logFile :: FilePath
 logFile = "Auditoria.log"
+
 
 loadInventario :: IO Inventario
 loadInventario = (do
@@ -45,6 +44,17 @@ handleReadError defaultVal e = do
     putStrLn $ "Aviso: Arquivo não encontrado ou permissão negada. Iniciando com dados vazios."
     return defaultVal
 
+-- Salva o inventário no disco
+saveInventario :: Inventario -> IO ()
+saveInventario inv = do
+    writeFile invFile (show inv)
+    putStrLn "Estado do inventário salvo em Inventario.dat."
+
+saveLog :: LogEntry -> IO ()
+saveLog logEntry = do
+    appendFile logFile (show logEntry ++ "\n")
+    putStrLn "Operação registrada em Auditoria.log."
+
 mainLoop :: Inventario -> [LogEntry] -> IO ()
 mainLoop inv logs = do
     putStr "\nComando (add, remove, update, report, sair): "
@@ -54,24 +64,56 @@ mainLoop inv logs = do
     
     processCommand comando time inv logs
 
-
 processCommand :: String -> UTCTime -> Inventario -> [LogEntry] -> IO ()
 processCommand comando time inv logs = do
     case comando of
         "add" -> do
-            putStrLn "--- (Lógica 'add' ainda não implementada) ---"
-            mainLoop inv logs -- Volta ao loop com o estado antigo
+            putStr "ID do item: "
+            id <- getLine
+            putStr "Nome do item: "
+            nome <- getLine
+            putStr "Quantidade inicial: "
+            qtdeStr <- getLine
+            putStr "Categoria: "
+            cat <- getLine
+
+            case readMaybe qtdeStr of
+                Nothing -> do
+                    putStrLn "Erro: Quantidade deve ser um número."
+                    mainLoop inv logs
+                Just qtde -> do
+                    let resultado = addItem time id nome qtde cat inv
+                    handleResultado resultado inv logs
 
         "remove" -> do
-            putStrLn "--- (Lógica 'remove' ainda não implementada) ---"
-            mainLoop inv logs
+            putStr "ID do item: "
+            id <- getLine
+            putStr "Quantidade a remover: "
+            qtdeStr <- getLine
+
+            case readMaybe qtdeStr of
+                Nothing -> do
+                    putStrLn "Erro: Quantidade deve ser um número."
+                    mainLoop inv logs
+                Just qtde -> do
+                    let resultado = removerItem time id qtde inv
+                    handleResultado resultado inv logs
 
         "update" -> do
-            putStrLn "--- (Lógica 'update' ainda não implementada) ---"
-            mainLoop inv logs
+            putStr "ID do item: "
+            id <- getLine
+            putStr "Nova quantidade total: "
+            qtdeStr <- getLine
+
+            case readMaybe qtdeStr of
+                Nothing -> do
+                    putStrLn "Erro: Quantidade deve ser um número."
+                    mainLoop inv logs
+                Just qtde -> do
+                    let resultado = atualizarQuantidade time id qtde inv
+                    handleResultado resultado inv logs
         
         "report" -> do
-            putStrLn "--- (Lógica 'report' ainda não implementada) ---"
             mainLoop inv logs
 
         "sair" -> do
@@ -82,6 +124,34 @@ processCommand comando time inv logs = do
             putStrLn "Erro: Comando inválido."
             mainLoop inv logs
 
+handleResultado :: Either String ResultadoOperacao -> Inventario -> [LogEntry] -> IO ()
+handleResultado (Left erroMsg) inv logs = do
+    -- Caso 1: Falha na lógica 
+    putStrLn $ "Falha na operação: " ++ erroMsg
+    
+    time <- getCurrentTime
+    let logFalha = LogEntry {
+        timestamp = time,
+        acao = QueryFail, 
+        detalhes = erroMsg,
+        status = Falha erroMsg
+    }
+    
+    -- Salva apenas o log
+    saveLog logFalha
+    
+    -- Continua o loop com o inventário antigo
+    mainLoop inv (logFalha : logs)
+
+handleResultado (Right (novoInv, logSucesso)) _ logs = do
+    -- Caso 2: Sucesso na operação
+    putStrLn "Operação bem-sucedida."
+    
+    -- Salva o novo inventário
+    saveInventario novoInv
+    saveLog logSucesso
+    
+    mainLoop novoInv (logSucesso : logs)
 
 main :: IO ()
 main = do
@@ -90,7 +160,7 @@ main = do
     inv <- loadInventario
     logs <- loadLogs
     
-    putStrLn "\n--- Sistema de Gerenciamento de Inventário ---"
+    putStrLn "\nSistema de Gerenciamento de Inventário "
     putStrLn "Comandos: add, remove, update, report, sair"
     
     mainLoop inv logs
