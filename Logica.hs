@@ -84,3 +84,23 @@ updateQty time itemID novaQtde inv =
                         , status = Sucesso
                         }
                 in Right (newInv, logEntry)
+                
+                
+
+
+-- Tipos para a função de popular
+type ListaItens = [(String, String, Int, String)]
+type ResultadoPopular = (Inventario, [LogEntry]) -- Retorna os logs
+
+-- Função auxiliar para adicionar itens em sequência
+addSequencial :: UTCTime -> (String, String, Int, String) -> Either String ResultadoPopular -> Either String ResultadoPopular
+addSequencial _ _ (Left err) = Left err -- Se já falhou, continua falhando
+addSequencial time (id, nome, qtde, cat) (Right (inv, logs)) =
+    case additem time id nome qtde cat inv of
+        Left err -> Left err -- caso falho
+        Right (novoInv, novoLog) -> Right (novoInv, novoLog : logs) -- caso sucesso
+
+-- Função pura para popular o inventário
+popularItens :: UTCTime -> ListaItens -> Inventario -> Either String ResultadoPopular
+popularItens time lista invInicial =
+    foldl (flip (addSequencial time)) (Right (invInicial, [])) lista

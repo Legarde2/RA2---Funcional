@@ -69,7 +69,7 @@ saveLog logEntry = do
 -- Loop principal do programa
 mainLoop :: Inventario -> [LogEntry] -> IO ()
 mainLoop inv logs = do
-    putStr "\nComando (add, remove, update, report, sair): "
+    putStr "\nComando (add, remove, update, popular, report, sair): "
     comando <- getLine
     
     time <- getCurrentTime
@@ -126,6 +126,41 @@ processCommand comando time inv logs = do
                     let resultado = updateQty time id qtde inv
                     handleResultado resultado inv logs
         
+        "popular" -> do
+            putStrLn "Populando o inventário com itens de teste..."
+            -- Lista de itens para popular
+            let itensParaAdicionar =
+                    [ ("001", "Teclado", 10, "Perifericos")
+                    , ("002", "Mouse", 20, "Perifericos")
+                    , ("003", "Monitor", 5, "Monitores")
+                    , ("004", "Webcam", 5, "Acessorios")
+                    , ("005", "Microfone", 8, "Acessorios")
+                    , ("006", "Cabo HDMI", 30, "Cabos")
+                    , ("007", "SSD 1TB", 15, "Armazenamento")
+                    , ("008", "Placa de Video", 3, "Componentes")
+                    , ("009", "Processador Intel core i9", 4, "Componentes")
+                    , ("010", "Gabinete", 7, "Componentes")
+                    ]
+            
+            let resultado = popularItens time itensParaAdicionar inv
+            
+            case resultado of
+                Left erroMsg -> do
+                    putStrLn $ "Falha ao popular: " ++ erroMsg
+                    timeFalha <- getCurrentTime
+                    let logFalha = LogEntry { timestamp = timeFalha, acao = QueryFail, detalhes = erroMsg, status = Falha erroMsg }
+                    saveLog logFalha
+                    mainLoop inv (logFalha : logs)
+
+                Right (novoInv, novosLogs) -> do
+                    -- Mensagem de sucesso atualizada
+                    putStrLn $ "Inventário populado com " ++ show (length novosLogs) ++ " novos itens!"
+                    saveInventario novoInv
+                    mapM_ saveLog (reverse novosLogs) -- Salva todos os novos logs
+                    mainLoop novoInv (reverse novosLogs ++ logs)
+        "listar" -> do 
+            -- lista o todos os itens do inventario
+            handleListar inv logs
         "report" -> do
             -- Chama o menu de relatórios
             handleReport inv logs
@@ -154,7 +189,7 @@ handleResultado (Left erroMsg) inv logs = do
     -- Salva apenas o log
     saveLog logFalha
     
-    -- Continua o loop com o inventário antigo
+    -- Continua o loop 
     mainLoop inv (logFalha : logs)
 
 handleResultado (Right (novoInv, logSucesso)) _ logs = do
@@ -167,6 +202,22 @@ handleResultado (Right (novoInv, logSucesso)) _ logs = do
     saveLog logSucesso
     
     mainLoop novoInv (logSucesso : logs)
+
+-- lista o todos os itens do inventario
+handleListar :: Inventario -> [LogEntry] -> IO ()
+handleListar inv logs = do
+    putStrLn "\n--- INVENTÁRIO ATUAL ---"
+    let itens = Map.elems inv
+    
+    if null itens
+    then putStrLn "(Inventário vazio)"
+    else
+        mapM_ print itens
+        
+    putStrLn "--------------------------"
+    -- Continua o loop
+    mainLoop inv logs
+
 
 handleReport :: Inventario -> [LogEntry] -> IO ()
 handleReport inv logs = do
@@ -217,6 +268,6 @@ main = do
     logs <- loadLogs
     
     putStrLn "\nSistema de Gerenciamento de Inventário "
-    putStrLn "Comandos: add, remove, update, report, sair"
+    putStrLn "Comandos: add, remove, update, popular,listar, report, sair"
     
     mainLoop inv logs
